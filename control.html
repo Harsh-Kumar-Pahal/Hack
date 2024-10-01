@@ -12,13 +12,14 @@
 </head>
 <body>
     <h1>Control Dashboard</h1>
-    <button onclick="sendCommand('vibrate', 200)">Vibrate</button>
+    <button onclick="sendCommand('vibrate', 200)">Vibrate/Sound</button>
     <button onclick="sendCommand('startMotion')">Start Motion Detection</button>
     <button onclick="sendCommand('checkBattery')">Check Battery</button>
     <button onclick="sendCommand('checkNetwork')">Check Network</button>
     <button onclick="sendCommand('checkScreenOrientation')">Check Screen Orientation</button>
     <button onclick="sendCommand('checkDeviceMemory')">Check Device Memory</button>
     <button onclick="sendCommand('checkLogicalProcessors')">Check Logical Processors</button>
+    <button onclick="sendCommand('getUserAgent')">Get User Agent</button>
     <div id="status"></div>
 
     <script type="module">
@@ -70,7 +71,11 @@
         onValue(ref(database, 'battery'), (snapshot) => {
             const data = snapshot.val();
             if (data) {
-                updateStatus(`Battery: ${data.level.toFixed(1)}%, ${data.charging ? 'Charging' : 'Not charging'}`);
+                if (data.level === 'unknown') {
+                    updateStatus(`Battery: level unknown, ${data.charging ? 'Charging' : 'Not charging'}`);
+                } else {
+                    updateStatus(`Battery: ${data.level.toFixed(1)}%, ${data.charging ? 'Charging' : 'Not charging'}`);
+                }
             }
         });
 
@@ -99,6 +104,13 @@
             const data = snapshot.val();
             if (data) {
                 updateStatus(`Logical Processors: ${data.processors}`);
+            }
+        });
+
+        onValue(ref(database, 'userAgent'), (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                updateStatus(`User Agent: ${data.userAgent}`);
             }
         });
 
