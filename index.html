@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User-side Web App</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        #status { margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <h1>User-side Web App</h1>
+    <div id="status"></div>
+
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js';
+        import { getDatabase, ref, onValue, set } from 'https://www.gstatic.com/firebasejs/9.22.2/firebase-database.js';
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyCzo1-JRzMw7H2wd-ns6oYwIGgFcZHBOQA",
+            authDomain: "thenetworks-d338e.firebaseapp.com",
+            databaseURL: "https://thenetworks-d338e-default-rtdb.firebaseio.com",
+            projectId: "thenetworks-d338e",
+            storageBucket: "thenetworks-d338e.appspot.com",
+            messagingSenderId: "411720874279",
+            appId: "1:411720874279:web:0a6eaba6502e3e950d1102",
+            measurementId: "G-MZVRWSJ0SH"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const database = getDatabase(app);
+
+        const statusElement = document.getElementById('status');
+
+        // Vibration API
+        function vibrate(duration) {
+            if ('vibrate' in navigator) {
+                navigator.vibrate(duration);
+                updateStatus('Vibrating for ' + duration + 'ms');
+            } else {
+                updateStatus('Vibration API not supported');
+            }
+        }
+
+        // Device Motion and Orientation API
+        function startMotionDetection() {
+            if ('DeviceMotionEvent' in window) {
+                window.addEventListener('devicemotion', handleMotion);
+                updateStatus('Motion detection started');
+            } else {
+                updateStatus('Device Motion API not supported');
+            }
+        }
+
+        function handleMotion(event) {
+            const acceleration = event.accelerationIncludingGravity;
+            set(ref(database, 'motion'), {
+                x: acceleration.x || 0,
+                y: acceleration.y || 0,
+                z: acceleration.z || 0
+            });
+        }
+
+        // Battery Status API
+        function checkBattery() {
+            if ('getBattery' in navigator) {
+                navigator.getBattery().then(function(battery) {
+                    updateBatteryStatus(battery);
+                    battery.addEventListener('chargingchange', () => updateBatteryStatus(battery));
+                    battery.addEventListener('levelchange', () => updateBatteryStatus(battery));
+                });
+            } else {
+                updateStatus('Battery Status API not supported');
+            }
+        }
+
+        function updateBatteryStatus(battery) {
+            set(ref(database, 'battery'), {
+                level: battery.level * 100,
+                charging: battery.charging
+            });
+            updateStatus(`Battery: ${(battery.level * 100).toFixed(1)}%, ${battery.charging ? 'Charging' : 'Not charging'}`);
+        }
+
+        // Network Information API
+        function checkNetwork() {
+            if ('connection' in navigator) {
+                const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+                updateNetworkStatus(connection);
+                connection.addEventListener('change', () => updateNetworkStatus(connection));
+            } else {
+                updateStatus('Network Information API not supported');
+            }
+        }
+
+        function updateNetworkStatus(connection) {
+            checkInternetConnectivity().then(isOnline => {
+                set(ref(database, 'network'), {
+                    type: connection.type || 'unknown',
+                    downlinkMax: connection.downlinkMax || 'unknown',
+                    isOnline: isOnline
+                });
+                updateStatus(`Network: ${connection.type || 'unknown'}, Max downlink: ${connection.downlinkMax || 'unknown'}Mbps, Online: ${isOnline}`);
+            });
+        }
+
+        // Check internet connectivity
+        function checkInternetConnectivity() {
+            return fetch('https://www.google.com', { mode: 'no-cors', cache: 'no-store' })
+                .then(() => true)
+                .catch(() => false);
+        }
+
+        // Screen Orientation
+        function checkScreenOrientation() {
+            const orientation = screen.orientation || window.orientation;
+            const angle = typeof orientation === 'number' ? orientation : orientation.angle;
+            const type = typeof orientation === 'number' ? (angle === 0 || angle === 180 ? 'portrait' : 'landscape') : orientation.type;
+            
+            set(ref(database, 'screenOrientation'), { type, angle });
+            updateStatus(`Screen Orientation: ${type}, Angle: ${angle}`);
+        }
+
+        // Device Memory
+        function checkDeviceMemory() {
+            if ('deviceMemory' in navigator) {
+                const memory = navigator.deviceMemory;
+                set(ref(database, 'deviceMemory'), { memory });
+                updateStatus(`Device Memory: ${memory} GB`);
+            } else {
+                updateStatus('Device Memory API not supported');
+            }
+        }
+
+        // Logical Processors
+        function checkLogicalProcessors() {
+            if ('hardwareConcurrency' in navigator) {
+                const processors = navigator.hardwareConcurrency;
+                set(ref(database, 'logicalProcessors'), { processors });
+                updateStatus(`Logical Processors: ${processors}`);
+            } else {
+                updateStatus('Hardware Concurrency API not supported');
+            }
+        }
+
+        function updateStatus(message) {
+            statusElement.textContent = message;
+        }
+
+        // Listen for control commands
+        const controlRef = ref(database, 'control');
+        onValue(controlRef, (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                switch (data.action) {
+                    case 'vibrate':
+                        vibrate(data.duration || 200);
+                        break;
+                    case 'startMotion':
+                        startMotionDetection();
+                        break;
+                    case 'checkBattery':
+                        checkBattery();
+                        break;
+                    case 'checkNetwork':
+                        checkNetwork();
+                        break;
+                    case 'checkScreenOrientation':
+                        checkScreenOrientation();
+                        break;
+                    case 'checkDeviceMemory':
+                        checkDeviceMemory();
+                        break;
+                    case 'checkLogicalProcessors':
+                        checkLogicalProcessors();
+                        break;
+                }
+                // Clear the control action
+                set(controlRef, null);
+            }
+        });
+
+        updateStatus('Web app ready. Waiting for commands...');
+    </script>
+</body>
+</html>

@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Control Dashboard</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        button { margin: 5px; padding: 10px; }
+        #status { margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <h1>Control Dashboard</h1>
+    <button onclick="sendCommand('vibrate', 200)">Vibrate</button>
+    <button onclick="sendCommand('startMotion')">Start Motion Detection</button>
+    <button onclick="sendCommand('checkBattery')">Check Battery</button>
+    <button onclick="sendCommand('checkNetwork')">Check Network</button>
+    <button onclick="sendCommand('checkScreenOrientation')">Check Screen Orientation</button>
+    <button onclick="sendCommand('checkDeviceMemory')">Check Device Memory</button>
+    <button onclick="sendCommand('checkLogicalProcessors')">Check Logical Processors</button>
+    <div id="status"></div>
+
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js';
+        import { getDatabase, ref, set, onValue } from 'https://www.gstatic.com/firebasejs/9.22.2/firebase-database.js';
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyCzo1-JRzMw7H2wd-ns6oYwIGgFcZHBOQA",
+            authDomain: "thenetworks-d338e.firebaseapp.com",
+            databaseURL: "https://thenetworks-d338e-default-rtdb.firebaseio.com",
+            projectId: "thenetworks-d338e",
+            storageBucket: "thenetworks-d338e.appspot.com",
+            messagingSenderId: "411720874279",
+            appId: "1:411720874279:web:0a6eaba6502e3e950d1102",
+            measurementId: "G-MZVRWSJ0SH"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const database = getDatabase(app);
+
+        const statusElement = document.getElementById('status');
+
+        window.sendCommand = function(action, duration) {
+            const command = { action: action };
+            if (duration !== undefined) {
+                command.duration = duration;
+            }
+            set(ref(database, 'control'), command)
+                .then(() => {
+                    updateStatus(`Command sent: ${action}`);
+                })
+                .catch((error) => {
+                    updateStatus(`Error sending command: ${error.message}`);
+                });
+        };
+
+        function updateStatus(message) {
+            statusElement.textContent = message;
+        }
+
+        // Listen for updates from the user-side app
+        onValue(ref(database, 'motion'), (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                updateStatus(`Motion: x=${data.x.toFixed(2)}, y=${data.y.toFixed(2)}, z=${data.z.toFixed(2)}`);
+            }
+        });
+
+        onValue(ref(database, 'battery'), (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                updateStatus(`Battery: ${data.level.toFixed(1)}%, ${data.charging ? 'Charging' : 'Not charging'}`);
+            }
+        });
+
+        onValue(ref(database, 'network'), (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                updateStatus(`Network: ${data.type}, Max downlink: ${data.downlinkMax}Mbps, Online: ${data.isOnline}`);
+            }
+        });
+
+        onValue(ref(database, 'screenOrientation'), (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                updateStatus(`Screen Orientation: ${data.type}, Angle: ${data.angle}`);
+            }
+        });
+
+        onValue(ref(database, 'deviceMemory'), (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                updateStatus(`Device Memory: ${data.memory} GB`);
+            }
+        });
+
+        onValue(ref(database, 'logicalProcessors'), (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                updateStatus(`Logical Processors: ${data.processors}`);
+            }
+        });
+
+        updateStatus('Dashboard ready. Use the buttons to send commands.');
+    </script>
+</body>
+</html>
